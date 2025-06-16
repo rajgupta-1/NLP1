@@ -1,16 +1,18 @@
 import streamlit as st
 import speech_recognition as sr
 from pydub import AudioSegment
+import tempfile
+import os
 
-def convert_audio_to_wav(audio_file):
-    audio = AudioSegment.from_file(audio_file)
-    wav_file = audio_file.name.split(".")[0] + ".wav"
-    audio.export(wav_file, format="wav")
-    return wav_file
+def convert_audio_to_wav(audio_file_path):
+    sound = AudioSegment.from_file(audio_file_path)
+    wav_path = audio_file_path.replace(".mp3", ".wav")
+    sound.export(wav_path, format="wav")
+    return wav_path
 
-def speech_to_text(audio_file):
+def speech_to_text(wav_path):
     recognizer = sr.Recognizer()
-    with sr.AudioFile(audio_file) as source:
+    with sr.AudioFile(wav_path) as source:
         audio = recognizer.record(source)
         try:
             text = recognizer.recognize_google(audio)
@@ -21,21 +23,34 @@ def speech_to_text(audio_file):
             return f"Error: {str(e)}"
 
 def main():
-    st.title("Speech to Text Converter")
-    st.write("Upload an audio file and convert it to text.")
+    st.title("🎤 Speech to Text Converter")
+    st.write("Upload an MP3 or WAV file to convert speech to text.")
 
-    uploaded_file = st.file_uploader("Choose an audio file", type=["wav", "mp3"])
+    uploaded_file = st.file_uploader("Upload Audio", type=["wav", "mp3"])
 
     if uploaded_file is not None:
-        file_details = {"Filename": uploaded_file.name, "FileType": uploaded_file.type}
-        st.write(file_details)
+        with tempfile.NamedTemporaryFile(delete=False, suffix=uploaded_file.name) as temp_audio:
+            temp_audio.write(uploaded_file.read())
+            temp_audio_path = temp_audio.name
 
+        # Convert MP3 to WAV if needed
         if uploaded_file.type == "audio/mp3":
-            uploaded_file = convert_audio_to_wav(uploaded_file)
+            wav_path = convert_audio_to_wav(temp_audio_path)
+        else:
+            wav_path = temp_audio_path
 
-        text = speech_to_text(uploaded_file)
-        st.write("Converted Text:")
-        st.write(text)
+        st.audio(uploaded_file, format=uploaded_file.type)
+
+        st.write("⏳ Converting...")
+        text = speech_to_text(wav_path)
+        st.write("✅ Converted Text:")
+        st.success(text)
+
+        # Clean up
+        if os.path.exists(temp_audio_path):
+            os.remove(temp_audio_path)
+        if os.path.exists(wav_path) and wav_path != temp_audio_path:
+            os.remove(wav_path)
 
 if __name__ == "__main__":
     main()
