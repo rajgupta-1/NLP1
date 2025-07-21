@@ -4,3 +4,4 @@ opencv-python
 Pillow
 langdetect
 gTTS
+python-3.10
